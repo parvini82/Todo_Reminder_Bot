@@ -5,3 +5,11 @@ python-dotenv==1.0.0
 requests==2.31.0
 python-dateutil==2.8.2
 jdatetime==4.1.0
+APScheduler
+jdatetime
+python-dateutil
+python-dotenv
+python-telegram-bot
+requests
+SQLAlchemy
+psycopg2-binary
