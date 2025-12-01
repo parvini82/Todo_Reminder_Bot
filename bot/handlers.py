@@ -270,7 +270,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 def _fetch_tasks(filter_query) -> List[Task]:
     with session_scope() as session:
-        return filter_query(session).all()
+        tasks = filter_query(session).all()
+        for task in tasks:
+            session.expunge(task)
+        return tasks
 
 
 async def today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
