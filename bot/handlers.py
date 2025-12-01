@@ -8,6 +8,7 @@ import jdatetime
 from jdatetime import date as jdate
 import pytz
 from dateutil import parser as date_parser
+from sqlalchemy.orm import load_only
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -270,7 +271,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 def _fetch_tasks(filter_query) -> List[Task]:
     with session_scope() as session:
-        tasks = filter_query(session).all()
+        tasks = (
+            filter_query(session)
+            .options(
+                load_only(
+                    Task.id,
+                    Task.title,
+                    Task.due_datetime,
+                    Task.priority,
+                )
+            )
+            .all()
+        )
         for task in tasks:
             session.expunge(task)
         return tasks
