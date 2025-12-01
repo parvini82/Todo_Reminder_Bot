@@ -43,21 +43,37 @@ def _to_local_tehran(dt_str: Optional[str]):
     return dt
 
 
-def _format_tasks(tasks: List[Task], label: str = "Tasks") -> str:
+def _format_tasks(tasks: List[Task], label: str = "Tasks", show_due: bool = True) -> str:
     if not tasks:
         return f"<b>کارهای {label}:</b>\n\nهیچ کاری پیدا نشد."
     lines = [f"<b>کارهای {label}:</b>\n"]
     for task in tasks:
-        if task.due_datetime:
-            due_str = _to_jalali(task.due_datetime)
-        else:
-            due_str = "بدون ساعت"
         priority_emoji = "🔴" if task.priority == "high" else "🟡"
-        lines.append(
-            f"• <b>{task.title}</b>\n"
-            f"   ⏰ {due_str}\n"
-            f"   📌 Priority: {priority_emoji} {task.priority} (#{task.id})"
-        )
+        if show_due:
+            if task.due_datetime:
+                due_str = _to_jalali(task.due_datetime)
+            else:
+                due_str = "بدون ساعت"
+            lines.append(
+                f"• <b>{task.title}</b>\n"
+                f"   ⏰ {due_str}\n"
+                f"   📌 Priority: {priority_emoji} {task.priority} (#{task.id})"
+            )
+        else:
+            lines.append(
+                f"• <b>{task.title}</b>\n"
+                f"   📌 {priority_emoji} {task.priority} (#{task.id})"
+            )
+    return "\n".join(lines)
+
+
+def _format_general_tasks(tasks: List[Task]) -> str:
+    if not tasks:
+        return "<b>کارهای کلی:</b>\n\nهیچ کاری پیدا نشد."
+    lines = ["<b>کارهای کلی:</b>\n"]
+    for task in tasks:
+        priority_emoji = "🔴" if task.priority == "high" else "🟡"
+        lines.append(f"• <b>{task.title}</b> (#{task.id})\n   📌 {priority_emoji} {task.priority}")
     return "\n".join(lines)
 
 
@@ -119,6 +135,17 @@ def _create_preview_message(task_data: Dict) -> str:
     title = task_data.get("title", "")
     due_str = _format_due_datetime(task_data.get("due_datetime"))
     priority = _format_priority(task_data.get("priority", "normal"))
+    category = task_data.get("category", "scheduled")
+    category_str = "کلی (بدون زمان)" if category == "general" else "زمان‌دار"
+    
+    if category == "general":
+        return (
+            "<b>Task detected:</b>\n\n"
+            f"عنوان: <b>{title}</b>\n"
+            f"دسته: <i>{category_str}</i>\n"
+            f"اولویت: {priority}\n\n"
+            "آیا این کار را اضافه کنم؟"
+        )
     
     return (
         "<b>Task detected:</b>\n\n"
@@ -197,6 +224,11 @@ async def create_task_from_parsed(
     priority = parsed.get("priority", "normal")
     if priority not in {"normal", "high"}:
         priority = "normal"
+    category = parsed.get("category", "scheduled")
+    if category not in {"scheduled", "general"}:
+        category = "general" if due_dt is None else "scheduled"
+    if due_dt is None:
+        category = "general"
 
     with session_scope() as session:
         task = Task(
@@ -205,6 +237,7 @@ async def create_task_from_parsed(
             title=parsed.get("title") or raw_text,
             due_datetime=due_dt,
             priority=priority,
+            category=category,
         )
         session.add(task)
         session.flush()
@@ -226,9 +259,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/today - کارهای امروز 📅\n"
         "/all - همه کارهای در انتظار 🗂\n"
         "/missed - کارهای از دست رفته ⏰\n"
+        "/general - کارهای کلی (بدون زمان) 📋\n"
         "/done <id> - علامت زدن کار به عنوان انجام شده ✔\n"
         "/delete <id> - حذف یک کار ✖\n\n"
-        "هر متن دیگری را برای ساخت کار ارسال کنید.",
+        "هر متن دیگری را برای ساخت کار ارسال کنید.\n"
+        "کارهای بدون تاریخ به صورت کلی ثبت می‌شوند.",
         parse_mode=ParseMode.HTML
     )
 
@@ -248,6 +283,7 @@ async def today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             .filter(
                 Task.user_id == user_id,
                 Task.status == "pending",
+                Task.category == "scheduled",
                 Task.due_datetime.isnot(None),
                 Task.due_datetime >= start,
                 Task.due_datetime <= end,
@@ -265,16 +301,41 @@ async def today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def all_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = _get_user_id(update)
 
-    def query(session):
-        return (
+    with session_scope() as session:
+        scheduled_tasks = (
             session.query(Task)
-            .filter(Task.user_id == user_id, Task.status == "pending")
-            .order_by(Task.created_at.asc())
+            .filter(
+                Task.user_id == user_id,
+                Task.status == "pending",
+                Task.category == "scheduled",
+            )
+            .order_by(Task.due_datetime.asc().nullslast(), Task.priority.desc())
+            .all()
+        )
+        general_tasks = (
+            session.query(Task)
+            .filter(
+                Task.user_id == user_id,
+                Task.status == "pending",
+                Task.category == "general",
+            )
+            .order_by(Task.priority.desc(), Task.created_at.asc())
+            .all()
         )
 
-    tasks = _fetch_tasks(query)
+    sections = []
+    if scheduled_tasks:
+        sections.append(_format_tasks(scheduled_tasks, "زمان‌دار"))
+    else:
+        sections.append("<b>کارهای زمان‌دار:</b>\n\nهیچ کاری پیدا نشد.")
+    
+    if general_tasks:
+        sections.append(_format_general_tasks(general_tasks))
+    else:
+        sections.append("<b>کارهای کلی:</b>\n\nهیچ کاری پیدا نشد.")
+
     await update.message.reply_text(
-        _format_tasks(tasks, "همه"),
+        "\n\n".join(sections),
         parse_mode=ParseMode.HTML,
     )
 
@@ -290,6 +351,7 @@ async def missed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             .filter(
                 Task.user_id == user_id,
                 Task.status == "pending",
+                Task.category == "scheduled",
                 Task.due_datetime.isnot(None),
                 Task.due_datetime < now_tehran,
             )
@@ -299,6 +361,27 @@ async def missed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     tasks = _fetch_tasks(query)
     await update.message.reply_text(
         _format_tasks(tasks, "از دست رفته"),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+async def general(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = _get_user_id(update)
+
+    def query(session):
+        return (
+            session.query(Task)
+            .filter(
+                Task.user_id == user_id,
+                Task.status == "pending",
+                Task.category == "general",
+            )
+            .order_by(Task.priority.desc(), Task.created_at.asc())
+        )
+
+    tasks = _fetch_tasks(query)
+    await update.message.reply_text(
+        _format_general_tasks(tasks),
         parse_mode=ParseMode.HTML,
     )
 
@@ -349,6 +432,11 @@ def _save_pending_task(user_id: str, pending: Dict) -> str:
     priority = pending.get("priority", "normal")
     if priority not in {"normal", "high"}:
         priority = "normal"
+    category = pending.get("category", "scheduled")
+    if category not in {"scheduled", "general"}:
+        category = "general" if due_dt is None else "scheduled"
+    if due_dt is None:
+        category = "general"
     
     with session_scope() as session:
         task = Task(
@@ -357,9 +445,12 @@ def _save_pending_task(user_id: str, pending: Dict) -> str:
             title=pending["title"],
             due_datetime=due_dt,
             priority=priority,
+            category=category,
         )
         session.add(task)
         session.flush()
+        if category == "general":
+            return f"کار کلی با موفقیت اضافه شد ✔"
         return f"کار با موفقیت اضافه شد ✔"
 
 
@@ -446,12 +537,16 @@ async def add_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if intent == "query_tasks":
         await send_tasks_for_date(update, context, parsed.get("query_date"))
         return
+    if intent == "query_general":
+        await general(update, context)
+        return
     if intent == "add_task":
         # Store pending task and show preview
         pending_tasks[user_id] = {
             "title": parsed.get("title") or text,
             "due_datetime": parsed.get("due_datetime"),
             "priority": parsed.get("priority", "normal"),
+            "category": parsed.get("category", "general" if parsed.get("due_datetime") is None else "scheduled"),
             "raw_text": text,
             "waiting_for_edit": None,
         }
@@ -530,6 +625,7 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("today", today))
     application.add_handler(CommandHandler("all", all_pending))
     application.add_handler(CommandHandler("missed", missed))
+    application.add_handler(CommandHandler("general", general))
     application.add_handler(CommandHandler("done", done))
     application.add_handler(CommandHandler("delete", delete))
     application.add_handler(CallbackQueryHandler(handle_task_callback, pattern="^(confirm_task|cancel_task|edit_title|edit_time)$"))

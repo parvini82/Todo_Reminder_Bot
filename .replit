@@ -1,4 +1,4 @@
-modules = ["nix", "bash", "python-3.11"]
+modules = ["nix", "bash", "python-3.11", "postgresql-16"]
 [agent]
 expertMode = true
 
