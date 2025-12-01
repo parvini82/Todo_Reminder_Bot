@@ -15,8 +15,9 @@ Production-ready Telegram bot that captures natural-language tasks, stores them 
 ## Features
 - Natural language task parsing using OpenRouter AI
 - Task management with due dates
+- **General Tasks**: Tasks without due dates stored separately
 - Daily summary notifications at 07:00
-- Commands: /start, /help, /today, /all, /missed, /done, /delete
+- Commands: /start, /help, /today, /all, /missed, /general, /done, /delete
 - Timezone: Europe/Vienna
 - Webhook-based updates (more reliable than polling)
 - Health check endpoint at `/`
@@ -65,15 +66,25 @@ bot/
 ## How to Use
 1. Start a chat with your bot on Telegram
 2. Send `/start` to see the welcome message
-3. Send any text to create a task (e.g., "Buy groceries tomorrow at 3pm")
+3. Send any text to create a task:
+   - With date: "Buy groceries tomorrow at 3pm" → Scheduled task
+   - Without date: "Read more books" → General task
 4. Use commands to manage tasks:
-   - `/today` - View today's tasks
-   - `/all` - View all pending tasks
-   - `/missed` - View overdue tasks
+   - `/today` - View today's scheduled tasks
+   - `/all` - View all pending tasks (grouped by type)
+   - `/missed` - View overdue scheduled tasks
+   - `/general` - View general tasks (no due date)
    - `/done <id>` - Mark a task as complete
    - `/delete <id>` - Delete a task
 
 ## Recent Changes
+- **2025-12-01:** Added General Tasks feature
+  - Tasks without due dates are now categorized as "general"
+  - New `/general` command to view general tasks
+  - `/all` now shows tasks grouped by category
+  - AI parser detects and categorizes tasks automatically
+  - Natural language queries like "کارای کلی رو نشون بده" supported
+
 - **2025-12-01:** Converted from polling to webhook mode
   - Added FastAPI server (server.py) for webhook handling
   - Health check endpoint at `/` keeps Replit awake

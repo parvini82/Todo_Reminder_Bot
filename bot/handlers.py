@@ -432,11 +432,11 @@ def _save_pending_task(user_id: str, pending: Dict) -> str:
     priority = pending.get("priority", "normal")
     if priority not in {"normal", "high"}:
         priority = "normal"
-    category = pending.get("category", "scheduled")
-    if category not in {"scheduled", "general"}:
-        category = "general" if due_dt is None else "scheduled"
+    # Category is determined by whether there's a due date
     if due_dt is None:
         category = "general"
+    else:
+        category = "scheduled"
     
     with session_scope() as session:
         task = Task(
@@ -519,6 +519,8 @@ async def add_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 new_due = time_parsed.get("due_datetime")
                 # Always update (allows clearing time by setting to None)
                 pending["due_datetime"] = new_due
+                # Update category based on whether due date is provided
+                pending["category"] = "general" if new_due is None else "scheduled"
                 pending["waiting_for_edit"] = None
                 preview_text = _create_preview_message(pending)
                 keyboard = _create_confirmation_keyboard()
