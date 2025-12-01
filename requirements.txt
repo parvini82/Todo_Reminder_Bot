@@ -13,3 +13,5 @@ python-telegram-bot
 requests
 SQLAlchemy
 psycopg2-binary
+fastapi
+uvicorn
