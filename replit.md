@@ -1,13 +1,15 @@
 # Telegram To-Do & Reminder Bot
 
-**Last Updated:** November 29, 2025
+**Last Updated:** December 1, 2025
 
 ## Overview
-Production-ready Telegram bot that captures natural-language tasks, stores them in PostgreSQL, and sends daily summaries at 07:00 (Europe/Vienna timezone).
+Production-ready Telegram bot that captures natural-language tasks, stores them in PostgreSQL, and sends daily summaries at 07:00 (Europe/Vienna timezone). Uses webhook mode for reliable operation on Replit.
 
 ## Current State
-- **Status:** Running and operational
+- **Status:** Running and operational (Webhook mode)
+- **Mode:** Webhook (not polling) for better reliability
 - **Database:** PostgreSQL (Replit managed)
+- **Web Server:** FastAPI with Uvicorn on port 5000
 - **Deployment:** Ready to use
 
 ## Features
@@ -16,9 +18,12 @@ Production-ready Telegram bot that captures natural-language tasks, stores them 
 - Daily summary notifications at 07:00
 - Commands: /start, /help, /today, /all, /missed, /done, /delete
 - Timezone: Europe/Vienna
+- Webhook-based updates (more reliable than polling)
+- Health check endpoint at `/`
 
 ## Architecture
 - **Bot Framework:** python-telegram-bot 20.7
+- **Web Server:** FastAPI + Uvicorn
 - **Database:** SQLAlchemy 2.0.25 with PostgreSQL
 - **Scheduler:** APScheduler 3.10.4
 - **AI Processing:** OpenRouter API
@@ -26,7 +31,8 @@ Production-ready Telegram bot that captures natural-language tasks, stores them 
 ## Project Structure
 ```
 bot/
-├── main.py          # Entry point, starts bot and scheduler
+├── main.py          # Entry point, starts uvicorn server
+├── server.py        # FastAPI webhook server
 ├── config.py        # Environment configuration
 ├── database.py      # SQLAlchemy setup and session management
 ├── models.py        # Database models
@@ -41,6 +47,8 @@ bot/
 - `OPENROUTER_MODEL`: AI model to use (default: openrouter/auto)
 - `TIMEZONE`: Timezone for daily summaries (default: Europe/Vienna)
 - `DATABASE_URL`: PostgreSQL connection (auto-configured by Replit)
+- `REPLIT_DEV_DOMAIN`: Auto-set by Replit for webhook URL
+- `WEBHOOK_PORT`: Server port (default: 5000)
 
 ## Dependencies
 - python-telegram-bot==20.7
@@ -51,6 +59,8 @@ bot/
 - python-dateutil==2.8.2
 - jdatetime==4.1.0
 - psycopg2-binary==2.9.11
+- fastapi
+- uvicorn
 
 ## How to Use
 1. Start a chat with your bot on Telegram
@@ -64,6 +74,12 @@ bot/
    - `/delete <id>` - Delete a task
 
 ## Recent Changes
+- **2025-12-01:** Converted from polling to webhook mode
+  - Added FastAPI server (server.py) for webhook handling
+  - Health check endpoint at `/` keeps Replit awake
+  - Webhook automatically configured using REPLIT_DEV_DOMAIN
+  - Added uvicorn as ASGI server
+
 - **2025-11-29:** Initial setup completed
   - Installed Python 3.11 and all dependencies
   - Configured environment variables

@@ -60,11 +60,12 @@ async def on_startup():
     """Initialize bot and set webhook on startup."""
     app_instance = get_application()
     await app_instance.initialize()
+    await app_instance.start()
     
     if PUBLIC_URL:
         webhook_url = f"{PUBLIC_URL}/webhook/{TELEGRAM_BOT_TOKEN}"
         await app_instance.bot.set_webhook(url=webhook_url)
-        logger.info(f"Webhook set to: {webhook_url}")
+        logger.info(f"Webhook configured at: {PUBLIC_URL}/webhook/***")
     else:
         logger.warning("PUBLIC_URL not set, webhook not configured")
 
@@ -74,6 +75,7 @@ async def on_shutdown():
     """Clean up on shutdown."""
     if application:
         await application.bot.delete_webhook()
+        await application.stop()
         await application.shutdown()
     if scheduler:
         scheduler.shutdown(wait=False)
