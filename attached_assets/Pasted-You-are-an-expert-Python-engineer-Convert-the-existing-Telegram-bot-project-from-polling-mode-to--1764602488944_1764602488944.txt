@@ -1,0 +1,62 @@
+You are an expert Python engineer.  
+Convert the existing Telegram bot project from polling mode to a fully functional Webhook mode that works reliably on Replit.
+
+IMPORTANT:
+- Do NOT rewrite the whole project.
+- Only add/modify the necessary files.
+- Keep all handlers and logic exactly as they are.
+- Keep ai_client.py, handlers.py, models, database, config as-is.
+
+====================================================
+GOALS
+====================================================
+
+1. Replace `application.run_polling()` with a webhook-based server.
+2. Add a lightweight web server (FastAPI or Flask, your choice) that:
+   - listens on port 8080 (required by Replit)
+   - exposes a health route `/`
+   - exposes the Telegram webhook route `/webhook/<TOKEN>`
+3. Integrate python-telegram-bot’s `Application.run_webhook()` properly.
+4. Ensure the bot is reachable at:
+      https://<your-repl-url>/webhook/<TOKEN>
+5. Load all sensitive values from `.env`.
+6. Ensure Replit keeps the project awake (web server must always run).
+
+====================================================
+REQUIRED CHANGES
+====================================================
+
+### 1) Create a new file named: `server.py`
+It should:
+- Import the Telegram Application instance
+- Create a FastAPI or Flask app
+- Define `@app.get("/")` → return "Bot is running"
+- Define `@app.post("/webhook/<token>")` → forward updates to Telegram Application
+- Start the web server on `host="0.0.0.0", port=8080`
+
+The body of this file should call:
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=8080,
+        url_path=BOT_TOKEN,
+        webhook_url=f"{PUBLIC_URL}/webhook/{BOT_TOKEN}",
+    )
+
+### 2) Modify main.py
+- Remove run_polling()
+- Import the FastAPI/Flask server instead
+- Load `.env`
+- Load bot token, OpenRouter key, and TIMEZONE as before
+- Expose the `application = Application.builder().token(BOT_TOKEN).build()`
+
+### 3) Add a config variable for PUBLIC_URL
+- PUBLIC_URL = os.getenv("PUBLIC_URL")
+This is the Replit URL for webhook registration.
+
+### 4) Add a small “keep alive” ping if necessary
+FastAPI approach:
+    from fastapi import FastAPI
+    app = FastAPI()
+
+### 5) Register handlers exactly as before
+No change to handler code.

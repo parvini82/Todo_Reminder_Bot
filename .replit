@@ -8,8 +8,8 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-OPENROUTER_MODEL = "openrouter/auto"
-TIMEZONE = "Europe/Vienna"
+OPENROUTER_MODEL = "tngtech/deepseek-r1t2-chimera:free"
+TIMEZONE = "Asia/Tehran"
 
 [workflows]
 runButton = "Project"
