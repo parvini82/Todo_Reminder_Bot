@@ -197,8 +197,8 @@ async def send_tasks_for_date(update: Update, context: ContextTypes.DEFAULT_TYPE
     end = start.replace(hour=23, minute=59, second=59)
     user_id = _get_user_id(update)
 
-    with session_scope() as session:
-        tasks = (
+    def build_query(session):
+        return (
             session.query(Task)
             .filter(
                 Task.user_id == user_id,
@@ -208,9 +208,10 @@ async def send_tasks_for_date(update: Update, context: ContextTypes.DEFAULT_TYPE
                 Task.due_datetime <= end,
             )
             .order_by(Task.priority.desc(), Task.due_datetime.asc())
-            .all()
         )
-        formatted = _format_tasks(tasks, date_label)
+
+    tasks = _fetch_tasks(build_query)
+    formatted = _format_tasks(tasks, date_label)
 
     await update.message.reply_text(formatted, parse_mode=ParseMode.HTML)
 
@@ -315,9 +316,9 @@ async def today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def all_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = _get_user_id(update)
-
-    with session_scope() as session:
-        scheduled_tasks = (
+    
+    def build_scheduled_query(session):
+        return (
             session.query(Task)
             .filter(
                 Task.user_id == user_id,
@@ -325,9 +326,10 @@ async def all_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 Task.category == "scheduled",
             )
             .order_by(Task.due_datetime.asc().nullslast(), Task.priority.desc())
-            .all()
         )
-        general_tasks = (
+
+    def build_general_query(session):
+        return (
             session.query(Task)
             .filter(
                 Task.user_id == user_id,
@@ -335,8 +337,10 @@ async def all_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 Task.category == "general",
             )
             .order_by(Task.priority.desc(), Task.created_at.asc())
-            .all()
         )
+
+    scheduled_tasks = _fetch_tasks(build_scheduled_query)
+    general_tasks = _fetch_tasks(build_general_query)
 
     sections = []
     if scheduled_tasks:
