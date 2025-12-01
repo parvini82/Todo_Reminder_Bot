@@ -100,15 +100,35 @@ IGNORE LOGIC
 If message is greeting, small talk, etc. → intent = "ignore"
 
 ====================================================
+GENERAL TASKS (NO DUE DATE)
+====================================================
+
+If user provides a task with NO date/time information:
+- "یه روز باید لباسا رو مرتب کنم"
+- "کتاب خریدن"
+- "ورزش بیشتر"
+- "یادم باشه به مامان زنگ بزنم"
+→ intent = "add_task"
+→ due_datetime = null
+→ category = "general"
+
+If user asks to see general/undated tasks:
+- "کارای کلی رو نشون بده"
+- "کارهای بدون زمان"
+- "چیزایی که فقط نوشتم رو بفرست"
+→ intent = "query_general"
+
+====================================================
 JSON OUTPUT (STRICT)
 ====================================================
 
 STRICT JSON ONLY. No explanation.
 {{
-  "intent": "add_task" | "query_tasks" | "update_task" | "move_task" | "delete_task" | "complete_task" | "ignore",
+  "intent": "add_task" | "query_tasks" | "query_general" | "update_task" | "move_task" | "delete_task" | "complete_task" | "ignore",
   "title": "<short title>",
   "due_datetime": "<ISO8601 or null>",
   "priority": "normal" | "high",
+  "category": "scheduled" | "general",
   "query_date": "<ISO date or null>",
   "query_range": "<day|week|month|null>",
   "target_task_reference": "<string or null>"
@@ -127,6 +147,7 @@ def _default_payload(text: str) -> Dict[str, Any]:
         "title": text.strip() or "Task",
         "due_datetime": None,
         "priority": "normal",
+        "category": "general",
         "query_date": None,
         "query_range": None,
         "target_task_reference": None,
@@ -186,11 +207,17 @@ def parse_task(text: str) -> Dict[str, Any]:
         priority = parsed.get("priority", "normal")
         if priority not in {"normal", "high"}:
             priority = "normal"
+        category = parsed.get("category", "scheduled")
+        if category not in {"scheduled", "general"}:
+            category = "general" if due_datetime is None else "scheduled"
+        if due_datetime is None and category == "scheduled":
+            category = "general"
         return {
             "intent": intent,
             "title": title,
             "due_datetime": due_datetime,
             "priority": priority,
+            "category": category,
             "query_date": parsed.get("query_date"),
             "query_range": parsed.get("query_range"),
             "target_task_reference": parsed.get("target_task_reference"),

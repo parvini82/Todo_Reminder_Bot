@@ -20,6 +20,7 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     status = Column(String, default="pending", nullable=False)
     priority = Column(String, default="normal", nullable=False)
+    category = Column(String, default="scheduled", nullable=False)
 
     def to_line(self) -> str:
         due = self.due_datetime.isoformat(timespec="minutes") if self.due_datetime else "No due date"

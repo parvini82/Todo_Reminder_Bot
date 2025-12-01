@@ -1,0 +1,71 @@
+Your task is to refactor the entire Telegram Todo Reminder bot codebase with the following upgrade:
+
+===========================================================
+FEATURE 1 — Add a new category for "General Tasks"
+===========================================================
+
+Definition:
+- "General Tasks" are tasks that have **no due date**.
+- They represent long-term or non-scheduled to-dos such as:
+  - «یه روز باید لباسا رو مرتب کنم»
+  - «کتاب خریدن»
+  - «ورزش بیشتر»
+- These tasks must NOT appear in the daily, weekly, missed, or reminder system.
+
+Database change:
+- In the Task model, add a new field:
+    category = Column(String, default="scheduled")
+- category can be:
+    - "scheduled"  (default)
+    - "general"    (tasks without due_datetime)
+
+AI parsing:
+- When the AI parser receives tasks with no recognizable date/time → set:
+    intent = "add_task"
+    due_datetime = null
+    category = "general"
+
+Bot behavior:
+- When adding a task with no time → automatically store with:
+    category = "general"
+
+- Create a new command:
+    /general
+  Or natural language:
+    - «کارای کلی رو نشون بده»
+    - «کارهای بدون زمان»
+    - «چیزایی که فقط نوشتم رو بفرست»
+
+Bot must respond with:
+    <b>کارهای کلی:</b>
+    • title (#id)
+    📌 priority
+
+IMPORTANT:
+General tasks should never be mixed with scheduled ones.
+
+
+===========================================================
+FEATURE 2 — Improve /all to group tasks:
+===========================================================
+
+When showing /all:
+- Print two sections:
+  1) <b>کارهای زمان‌دار</b>
+  2) <b>کارهای کلی</b>
+
+===========================================================
+FILES TO UPDATE
+===========================================================
+- models.py → add `category`
+- migration generator
+- ai_client → AI must output "category": "general" when no due datetime
+- handlers.py:
+  - update add_task()
+  - update today(), missed(), etc not to show general tasks
+  - add new /general command
+  - modify _format_tasks to support category
+
+Apply changes across all referential code paths.
+Keep backward compatibility.
+Do not break the existing confirmation flow.
